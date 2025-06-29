@@ -7,5 +7,9 @@
 // Function to display a grid of fingerprint images
 void displayFingerprintGrid(const std::vector<std::string>& imagePaths);
 
-// Function to binarize an image using a specified threshold
-cv::Mat binarizeImage(const cv::Mat& img, int threshold);
+void displayFingerprintObjectsGrid(const std::vector<cv::Mat>& images);
+
+// Function to binarize an image
+void binarizeFingerprint(const cv::Mat& img);
+
+std::vector<uchar> findNeighbors(const cv::Mat& img, int x, int y);

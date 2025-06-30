@@ -1,5 +1,6 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
+#include <numeric>
 #include "include/imageProcessing.hpp"
 
 void displayFingerprintGrid(const std::vector<std::string>& imagePaths) {
@@ -121,7 +122,7 @@ void displayFingerprintObjectsGrid(const std::vector<cv::Mat>& images) {
     cv::waitKey(0);
 }
 
-void binarizeFingerprint(const cv::Mat& img) {
+void binarizeFingerprint(cv::Mat& img) {
     const int blockSize = 16;
 
 	// Iterates over the image in blocks
@@ -150,11 +151,102 @@ void binarizeFingerprint(const cv::Mat& img) {
 }
 
 // Function to find the 8 neighbors of a pixel in a grayscale image
-std::vector<uchar> findNeighbors(const cv::Mat& img, int x, int y) {
-    std::vector<uchar> neighbors = {
-        img.at<uchar&>(y - 1, x - 1), img.at<uchar&>(y - 1, x), img.at<uchar&>(y - 1, x + 1),
-        img.at<uchar&>(y, x - 1), img.at<uchar&>(y, x + 1),
-        img.at<uchar&>(y + 1, x - 1), img.at<uchar&>(y + 1, x), img.at<uchar&>(y + 1, x + 1)
-	};
-	return neighbors;
+std::vector<uchar> findNeighbors(const cv::Mat& img, int i, int j) {
+    if (i <= 0 || j <= 0 || i >= img.rows - 1 || j >= img.cols - 1) {
+        return std::vector<uchar>(8, 0);
+    }
+    return {
+        img.at<uchar>(i - 1, j),     // P2 (top)
+        img.at<uchar>(i - 1, j + 1), // P3 (top-right)
+        img.at<uchar>(i,     j + 1), // P4 (right)
+        img.at<uchar>(i + 1, j + 1), // P5 (bottom-right)
+        img.at<uchar>(i + 1, j),     // P6 (bottom)
+        img.at<uchar>(i + 1, j - 1), // P7 (bottom-left)
+        img.at<uchar>(i,     j - 1), // P8 (left)
+        img.at<uchar>(i - 1, j - 1)  // P9 (top-left)
+    };
+}
+
+
+// Function to count transitions in the neighbors
+int findTransitions(std::vector<uchar> neighbors) {
+    int transitions = 0;
+    for (size_t i = 0; i < neighbors.size(); ++i) {
+        if (neighbors[i] == 0 && neighbors[(i + 1) % neighbors.size()] == 1) {
+            transitions++;
+        }
+    }
+    return transitions;
+}
+
+cv::Mat thinFingerprint(const cv::Mat& img) {
+    // Convert to binary: 0 or 1 for thinning logic
+    cv::Mat thinnedImage;
+    img.convertTo(thinnedImage, CV_8UC1);
+    thinnedImage /= 255;
+
+    bool changing = true;
+
+    while (changing) {
+        changing = false;
+        std::vector<cv::Point> toDelete;
+
+        // --- Step 1 ---
+        for (int j = 1; j < thinnedImage.rows - 1; ++j) {
+            for (int i = 1; i < thinnedImage.cols - 1; ++i) {
+                if (thinnedImage.at<uchar>(j, i) == 1) {
+                    std::vector<uchar> neighbors = findNeighbors(thinnedImage, j, i);
+                    int transitions = findTransitions(neighbors);
+                    int numOfNeighbors = 0;
+                    for (uchar n : neighbors) {
+                        numOfNeighbors += (n > 0);
+                    }
+
+                    if (2 <= numOfNeighbors && numOfNeighbors <= 6 &&
+                        transitions == 1 &&
+                        neighbors[0] * neighbors[2] * neighbors[4] == 0 &&
+                        neighbors[2] * neighbors[4] * neighbors[6] == 0) {
+                        toDelete.emplace_back(i, j); // Store as (col, row)
+                    }
+                }
+            }
+        }
+
+        for (const auto& pt : toDelete) {
+            thinnedImage.at<uchar>(pt.y, pt.x) = 0;
+        }
+        if (!toDelete.empty()) changing = true;
+
+        toDelete.clear();
+
+        // --- Step 2 ---
+        for (int j = 1; j < thinnedImage.rows - 1; ++j) { // Iterate rows
+            for (int i = 1; i < thinnedImage.cols - 1; ++i) { // Iterate columns
+                if (thinnedImage.at<uchar>(j, i) == 1) {
+                    std::vector<uchar> neighbors = findNeighbors(thinnedImage, j, i);
+                    int transitions = findTransitions(neighbors);
+                    int numOfNeighbors = 0;
+                    for (uchar n : neighbors) {
+                        numOfNeighbors += (n > 0);
+                    }
+
+                    if (2 <= numOfNeighbors && numOfNeighbors <= 6 &&
+                        transitions == 1 &&
+                        neighbors[0] * neighbors[2] * neighbors[6] == 0 &&
+                        neighbors[0] * neighbors[4] * neighbors[6] == 0) {
+                        toDelete.emplace_back(i, j); // Store as (col, row)
+                    }
+                }
+            }
+        }
+
+        for (const auto& pt : toDelete) {
+            thinnedImage.at<uchar>(pt.y, pt.x) = 0;
+        }
+        if (!toDelete.empty()) changing = true;
+    }
+
+    // Convert back to 0/255 format for output
+    thinnedImage *= 255;
+    return thinnedImage;
 }

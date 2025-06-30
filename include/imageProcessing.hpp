@@ -10,6 +10,12 @@ void displayFingerprintGrid(const std::vector<std::string>& imagePaths);
 void displayFingerprintObjectsGrid(const std::vector<cv::Mat>& images);
 
 // Function to binarize an image
-void binarizeFingerprint(const cv::Mat& img);
+void binarizeFingerprint(cv::Mat& img);
 
-std::vector<uchar> findNeighbors(const cv::Mat& img, int x, int y);
+// Function to find neighboring pixels
+std::vector<uchar> findNeighbors(const cv::Mat& img, int i, int j);
+
+int findTransitions(std::vector<uchar> neighbors);
+
+// Function to thin a fingerprint image
+cv::Mat thinFingerprint(const cv::Mat& img);

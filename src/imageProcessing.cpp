@@ -1,6 +1,5 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
-#include <numeric>
 #include "include/imageProcessing.hpp"
 
 void displayFingerprintGrid(const std::vector<std::string>& imagePaths) {
@@ -76,16 +75,20 @@ void displayFingerprintObjectsGrid(const std::vector<cv::Mat>& images) {
     const cv::Size targetSize(200, 200);
     const int borderSize = 2;
     std::vector<cv::Mat> processedImages;
+    int imageType = -1;
+
     for (const auto& img : images) {
         if (img.empty()) {
             std::cerr << "Empty image encountered.\n";
             continue;
         }
+        if (imageType == -1) imageType = img.type();
+
         // Resize and add black border
         cv::Mat resizedImg;
         cv::resize(img, resizedImg, targetSize);
         cv::copyMakeBorder(resizedImg, resizedImg, borderSize, borderSize, borderSize, borderSize,
-            cv::BORDER_CONSTANT, cv::Scalar(255));
+            cv::BORDER_CONSTANT, imageType == CV_8UC1 ? cv::Scalar(255) : cv::Scalar(255,255,255));
         processedImages.push_back(resizedImg);
     }
     if (processedImages.empty()) {
@@ -101,7 +104,11 @@ void displayFingerprintObjectsGrid(const std::vector<cv::Mat>& images) {
     while (processedImages.size() < rows * cols) {
         cv::Mat blank = cv::Mat::zeros(targetSize.height + 2 * borderSize,
             targetSize.width + 2 * borderSize,
-            CV_8UC1);
+            imageType);
+        if (imageType == CV_8UC1)
+            blank.setTo(255);
+        else
+            blank.setTo(cv::Scalar(255,255,255));
         processedImages.push_back(blank);
     }
     // Assemble the grid row by row
@@ -150,7 +157,7 @@ void binarizeFingerprint(cv::Mat& img) {
     }
 }
 
-// Function to find the 8 neighbors of a pixel in a grayscale image
+// Function to find the 8 neighbors of a pixel
 std::vector<uchar> findNeighbors(const cv::Mat& img, int i, int j) {
     if (i <= 0 || j <= 0 || i >= img.rows - 1 || j >= img.cols - 1) {
         return std::vector<uchar>(8, 0);
@@ -249,4 +256,70 @@ cv::Mat thinFingerprint(const cv::Mat& img) {
     // Convert back to 0/255 format for output
     thinnedImage *= 255;
     return thinnedImage;
+}
+
+std::vector<MinutiaePoint> findMinutiae(const cv::Mat& thinnedImage) {
+    std::vector<MinutiaePoint> minutiaePoints;
+
+    // Use a padded image to avoid border checks in the loop
+    cv::Mat paddedImage;
+    cv::copyMakeBorder(thinnedImage, paddedImage, 1, 1, 1, 1, cv::BORDER_CONSTANT, cv::Scalar(0));
+
+    // Iterate through each pixel of the original image dimensions
+    for (int y = 1; y < paddedImage.rows - 1; y++) {
+        for (int x = 1; x < paddedImage.cols - 1; x++) {
+
+            // We only care about ridge pixels (black, value > 0)
+            if (paddedImage.at<uchar>(y, x) > 0) {
+
+                // Get 8 neighbors
+                uchar p2 = paddedImage.at<uchar>(y - 1, x);
+                uchar p3 = paddedImage.at<uchar>(y - 1, x + 1);
+                uchar p4 = paddedImage.at<uchar>(y, x + 1);
+                uchar p5 = paddedImage.at<uchar>(y + 1, x + 1);
+                uchar p6 = paddedImage.at<uchar>(y + 1, x);
+                uchar p7 = paddedImage.at<uchar>(y + 1, x - 1);
+                uchar p8 = paddedImage.at<uchar>(y, x - 1);
+                uchar p9 = paddedImage.at<uchar>(y - 1, x - 1);
+
+                // Create an ordered list of neighbors and normalize to 0 or 1
+                std::vector<uchar> neighbors = { p2, p3, p4, p5, p6, p7, p8, p9 };
+                for (auto& val : neighbors) {
+                    val = val > 0 ? 1 : 0;
+                }
+
+                // Calculate the Crossing Number
+                int transitions = 0;
+                for (size_t i = 0; i < neighbors.size(); ++i) {
+                    transitions += std::abs(neighbors[i] - neighbors[(i + 1) % neighbors.size()]);
+                }
+                int crossingNumber = transitions / 2;
+
+                // Check for minutiae types
+                if (crossingNumber == 1) {
+                    // Minutiae coordinates must be adjusted back to the original image space (-1)
+                    minutiaePoints.push_back(MinutiaePoint(x - 1, y - 1, "ending"));
+                }
+                else if (crossingNumber == 3) {
+                    minutiaePoints.push_back(MinutiaePoint(x - 1, y - 1, "bifurcation"));
+                }
+            }
+        }
+    }
+    return minutiaePoints;
+}
+
+cv::Mat overlayMinutiae(const cv::Mat& img, const std::vector<MinutiaePoint>& minutiaePoints) {
+    cv::Mat overlayedImage = img.clone();
+    cv::cvtColor(img, overlayedImage, cv::COLOR_GRAY2BGR);
+
+    for (const auto& point : minutiaePoints) {
+        auto pos = point.getPosition();
+        if (point.getType() == "ending") {
+            cv::circle(overlayedImage, cv::Point(pos.first, pos.second), 5, cv::Scalar(0, 0, 255), -1);
+        } else if (point.getType() == "bifurcation") {
+            cv::circle(overlayedImage, cv::Point(pos.first, pos.second), 7, cv::Scalar(0, 255, 0), -1);
+		}
+    }
+    return overlayedImage;
 }

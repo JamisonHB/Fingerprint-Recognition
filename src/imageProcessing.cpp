@@ -260,48 +260,34 @@ cv::Mat thinFingerprint(const cv::Mat& img) {
 
 std::vector<MinutiaePoint> findMinutiae(const cv::Mat& thinnedImage) {
     std::vector<MinutiaePoint> minutiaePoints;
+    
+	// Iterate through the thinned image, skipping the border pixels
+    for (int y = 1; y < thinnedImage.rows - 1; y++) {
+        for (int x = 1; x < thinnedImage.cols - 1; x++) {
 
-    // Use a padded image to avoid border checks in the loop
-    cv::Mat paddedImage;
-    cv::copyMakeBorder(thinnedImage, paddedImage, 1, 1, 1, 1, cv::BORDER_CONSTANT, cv::Scalar(0));
+			// Ridge pixel check
+            if (thinnedImage.at<uchar>(y, x) > 0) {
 
-    // Iterate through each pixel of the original image dimensions
-    for (int y = 1; y < paddedImage.rows - 1; y++) {
-        for (int x = 1; x < paddedImage.cols - 1; x++) {
+                std::vector<uchar> neighbors = findNeighbors(thinnedImage, y, x);
 
-            // We only care about ridge pixels (black, value > 0)
-            if (paddedImage.at<uchar>(y, x) > 0) {
-
-                // Get 8 neighbors
-                uchar p2 = paddedImage.at<uchar>(y - 1, x);
-                uchar p3 = paddedImage.at<uchar>(y - 1, x + 1);
-                uchar p4 = paddedImage.at<uchar>(y, x + 1);
-                uchar p5 = paddedImage.at<uchar>(y + 1, x + 1);
-                uchar p6 = paddedImage.at<uchar>(y + 1, x);
-                uchar p7 = paddedImage.at<uchar>(y + 1, x - 1);
-                uchar p8 = paddedImage.at<uchar>(y, x - 1);
-                uchar p9 = paddedImage.at<uchar>(y - 1, x - 1);
-
-                // Create an ordered list of neighbors and normalize to 0 or 1
-                std::vector<uchar> neighbors = { p2, p3, p4, p5, p6, p7, p8, p9 };
+				// Normalize to 0 or 1
                 for (auto& val : neighbors) {
                     val = val > 0 ? 1 : 0;
                 }
 
-                // Calculate the Crossing Number
+                // Calculate the Crossing Number (sum of absolute differences / 2)
                 int transitions = 0;
                 for (size_t i = 0; i < neighbors.size(); ++i) {
                     transitions += std::abs(neighbors[i] - neighbors[(i + 1) % neighbors.size()]);
                 }
                 int crossingNumber = transitions / 2;
 
-                // Check for minutiae types
+                // Check for minutiae types and add them
                 if (crossingNumber == 1) {
-                    // Minutiae coordinates must be adjusted back to the original image space (-1)
-                    minutiaePoints.push_back(MinutiaePoint(x - 1, y - 1, "ending"));
+                    minutiaePoints.push_back(MinutiaePoint(x, y, "ending"));
                 }
                 else if (crossingNumber == 3) {
-                    minutiaePoints.push_back(MinutiaePoint(x - 1, y - 1, "bifurcation"));
+                    minutiaePoints.push_back(MinutiaePoint(x, y, "bifurcation"));
                 }
             }
         }

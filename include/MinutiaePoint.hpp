@@ -14,6 +14,8 @@ public:
 
 	std::pair<int, int> getPosition() const;
 
+	void setPosition(int x, int y);
+
 	std::string getType() const;
 
 	double getAngle() const;

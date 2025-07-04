@@ -12,6 +12,10 @@ std::pair<int, int> MinutiaePoint::getPosition() const {
 	return position;
 }
 
+void MinutiaePoint::setPosition(int x, int y) {
+	position = std::make_pair(x, y);
+}
+
 std::string MinutiaePoint::getType() const {
 	return type;
 }

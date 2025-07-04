@@ -1,6 +1,11 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include "include/imageProcessing.hpp"
+#include <cmath>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 void displayFingerprintGrid(const std::vector<std::string>& imagePaths) {
     if (imagePaths.empty()) {
@@ -157,7 +162,6 @@ void binarizeFingerprint(cv::Mat& img) {
     }
 }
 
-// Function to find the 8 neighbors of a pixel
 std::vector<uchar> findNeighbors(const cv::Mat& img, int i, int j) {
     if (i <= 0 || j <= 0 || i >= img.rows - 1 || j >= img.cols - 1) {
         return std::vector<uchar>(8, 0);
@@ -174,8 +178,6 @@ std::vector<uchar> findNeighbors(const cv::Mat& img, int i, int j) {
     };
 }
 
-
-// Function to count transitions in the neighbors
 int findTransitions(std::vector<uchar> neighbors) {
     int transitions = 0;
     for (size_t i = 0; i < neighbors.size(); ++i) {
@@ -258,6 +260,40 @@ cv::Mat thinFingerprint(const cv::Mat& img) {
     return thinnedImage;
 }
 
+double traceAndGetAngle(const cv::Mat& thinnedImage, cv::Point minutiaCenter, cv::Point startNode) {
+    cv::Point currentPos = startNode;
+    cv::Point prevPos = minutiaCenter;
+
+	const int TRACE_LENGTH = 7; // Walk distance (adjustable)
+    for (int i = 0; i < TRACE_LENGTH; ++i) {
+        bool foundNext = false;
+        // Check 8 neighbors to find the next step
+        for (int ny = -1; ny <= 1; ++ny) {
+            for (int nx = -1; nx <= 1; ++nx) {
+                if (ny == 0 && nx == 0) continue;
+
+                cv::Point nextPos(currentPos.x + nx, currentPos.y + ny);
+
+                // Ensure the next point is within bounds
+                if (nextPos.x < 0 || nextPos.y < 0 || nextPos.y >= thinnedImage.rows || nextPos.x >= thinnedImage.cols) continue;
+
+                // Move to the next ridge pixel that isn't the one we just came from
+                if ((nextPos != prevPos) && (thinnedImage.at<uchar>(nextPos) > 0)) {
+                    prevPos = currentPos;
+                    currentPos = nextPos;
+                    foundNext = true;
+                    goto next_trace_step; // Exit neighbor loops
+                }
+            }
+        }
+    next_trace_step:
+        if (!foundNext) break; // Stop if the path ends
+    }
+
+    // Return the angle of the vector from the minutia's center to the end of our trace
+    return atan2(static_cast<double>(currentPos.y - minutiaCenter.y), static_cast<double>(currentPos.x - minutiaCenter.x));
+}
+
 std::vector<MinutiaePoint> findMinutiae(const cv::Mat& thinnedImage) {
     std::vector<MinutiaePoint> minutiaePoints;
     
@@ -283,11 +319,61 @@ std::vector<MinutiaePoint> findMinutiae(const cv::Mat& thinnedImage) {
                 int crossingNumber = transitions / 2;
 
                 // Check for minutiae types and add them
+                cv::Point center(x, y);
+
+                // Check for Endings
                 if (crossingNumber == 1) {
-                    minutiaePoints.push_back(MinutiaePoint(x, y, "ending"));
+                    // Find the single neighboring ridge pixel to start the trace
+                    for (int ny = -1; ny <= 1; ++ny) {
+                        for (int nx = -1; nx <= 1; ++nx) {
+                            if (ny == 0 && nx == 0) continue;
+                            cv::Point neighbor(x + nx, y + ny);
+                            if (thinnedImage.at<uchar>(neighbor) > 0) {
+                                double angle = traceAndGetAngle(thinnedImage, center, neighbor);
+                                minutiaePoints.push_back(MinutiaePoint(x, y, "ending", angle));
+								break; // Neighbor found, no need to check others
+                            }
+                        }
+                    }
                 }
+                // Check for Bifurcations
                 else if (crossingNumber == 3) {
-                    minutiaePoints.push_back(MinutiaePoint(x, y, "bifurcation"));
+                    std::vector<double> angles;
+                    // Find the 3 neighboring ridge pixels
+                    for (int ny = -1; ny <= 1; ++ny) {
+                        for (int nx = -1; nx <= 1; ++nx) {
+                            if (ny == 0 && nx == 0) continue;
+                            cv::Point neighbor(x + nx, y + ny);
+                            if (thinnedImage.at<uchar>(neighbor) > 0) {
+                                angles.push_back(traceAndGetAngle(thinnedImage, center, neighbor));
+                            }
+                        }
+                    }
+
+                    // If we found 3 angles, find the orientation of the stem
+                    if (angles.size() == 3) {
+                        double d1 = std::abs(angles[0] - angles[1]);
+                        double d2 = std::abs(angles[1] - angles[2]);
+                        double d3 = std::abs(angles[2] - angles[0]);
+
+                        if (d1 > M_PI) d1 = 2 * M_PI - d1;
+                        if (d2 > M_PI) d2 = 2 * M_PI - d2;
+                        if (d3 > M_PI) d3 = 2 * M_PI - d3;
+
+                        double bifurcation_angle = 0;
+                        if (d1 <= d2 && d1 <= d3) {
+                            bifurcation_angle = angles[2] + M_PI;
+                        }
+                        else if (d2 <= d1 && d2 <= d3) {
+                            bifurcation_angle = angles[0] + M_PI;
+                        }
+                        else {
+                            bifurcation_angle = angles[1] + M_PI;
+                        }
+
+                        bifurcation_angle = atan2(sin(bifurcation_angle), cos(bifurcation_angle));
+                        minutiaePoints.push_back(MinutiaePoint(x, y, "bifurcation", bifurcation_angle));
+                    }
                 }
             }
         }

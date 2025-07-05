@@ -10,6 +10,8 @@ private:
 	double angle; // angle of the minutiae point
 
 public:
+	MinutiaePoint();
+
 	MinutiaePoint(int x, int y, const std::string& type, double angle);
 
 	std::pair<int, int> getPosition() const;

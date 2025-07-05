@@ -1,6 +1,10 @@
 #include "MinutiaePoint.hpp"
 #include <stdexcept>
 
+MinutiaePoint::MinutiaePoint()
+	: position(0, 0), type("ending"), angle(0.0) {
+}
+
 MinutiaePoint::MinutiaePoint(int x, int y, const std::string& type, double angle)
 	: position(x, y), type(type), angle(angle) {
 	if (type != "ending" && type != "bifurcation") {

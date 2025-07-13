@@ -28,5 +28,8 @@ double traceAndGetAngle(const cv::Mat& thinnedImage, cv::Point minutiaeCenter, c
 // Function to find minutiae points in a fingerprint image
 std::vector<MinutiaePoint> findMinutiae(const cv::Mat& thinnedImage);
 
+// Function to remove false minutiae points based on image dimensions
+void removeFalseMinutiae(std::vector<MinutiaePoint>& minutiaePoints, int imgWidth, int imgHeight);
+
 // Function to overlay minutiae points on an image
 cv::Mat overlayMinutiae(const cv::Mat& img, const std::vector<MinutiaePoint>& minutiaePoints);

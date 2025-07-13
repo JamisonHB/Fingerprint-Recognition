@@ -381,6 +381,49 @@ std::vector<MinutiaePoint> findMinutiae(const cv::Mat& thinnedImage) {
     return minutiaePoints;
 }
 
+void removeFalseMinutiae(std::vector<MinutiaePoint>& minutiaePoints, int imgWidth, int imgHeight) {
+    const int BORDER_MARGIN = 15;
+    const double MIN_DISTANCE_SQ = std::pow(10.0, 2);
+
+    // Rule 1: Mark minutiae too close to the border for removal
+    std::vector<bool> to_remove(minutiaePoints.size(), false);
+    for (size_t i = 0; i < minutiaePoints.size(); ++i) {
+        auto pos = minutiaePoints[i].getPosition();
+        if (pos.first < BORDER_MARGIN || pos.first > imgWidth - BORDER_MARGIN ||
+            pos.second < BORDER_MARGIN || pos.second > imgHeight - BORDER_MARGIN) {
+            to_remove[i] = true;
+        }
+    }
+
+    // Rule 2: Mark minutiae that are too close to each other
+    for (size_t i = 0; i < minutiaePoints.size(); ++i) {
+        if (to_remove[i]) continue;
+        for (size_t j = i + 1; j < minutiaePoints.size(); ++j) {
+            if (to_remove[j]) continue;
+
+            auto pos1 = minutiaePoints[i].getPosition();
+            auto pos2 = minutiaePoints[j].getPosition();
+            double distSq = std::pow(pos1.first - pos2.first, 2) + std::pow(pos1.second - pos2.second, 2);
+
+            if (distSq < MIN_DISTANCE_SQ) {
+                to_remove[i] = true;
+                to_remove[j] = true;
+            }
+        }
+    }
+
+    // Move all items not marked for removal to the front,
+    // then erase the rest of the vector.
+    auto new_end = std::remove_if(minutiaePoints.begin(), minutiaePoints.end(),
+        [&](const MinutiaePoint& point) {
+            // Get the index of the current point to check our 'to_remove' list
+            size_t index = &point - &minutiaePoints[0];
+            return to_remove[index];
+        });
+
+    minutiaePoints.erase(new_end, minutiaePoints.end());
+}
+
 cv::Mat overlayMinutiae(const cv::Mat& img, const std::vector<MinutiaePoint>& minutiaePoints) {
     cv::Mat overlayedImage = img.clone();
     cv::cvtColor(img, overlayedImage, cv::COLOR_GRAY2BGR);

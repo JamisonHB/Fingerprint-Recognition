@@ -13,6 +13,10 @@ void displayFingerprintObjectsGrid(const std::vector<cv::Mat>& images);
 // Function to binarize an image
 void binarizeFingerprint(cv::Mat& img);
 
+// Function to denoise a fingerprint image
+// Note: this function was written by AI
+cv::Mat segmentFingerprint(const cv::Mat& img);
+
 // Helper function to find neighboring pixels
 std::vector<uchar> findNeighbors(const cv::Mat& img, int i, int j);
 

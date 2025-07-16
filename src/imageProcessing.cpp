@@ -191,6 +191,9 @@ cv::Mat segmentFingerprint(const cv::Mat& img) {
     // "Closing" fills small holes in the main object
     cv::morphologyEx(mask, mask, cv::MORPH_CLOSE, kernel);
 
+    cv::Mat erosion_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));
+    cv::erode(mask, mask, erosion_kernel);
+
     return mask;
 }
 

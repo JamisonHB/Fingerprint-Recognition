@@ -1,5 +1,6 @@
-#include "include/matching.hpp"
+#include "matching.hpp"
 #include <cmath>
+#include <limits>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -12,8 +13,8 @@ double calculateMatchScore(const std::vector<MinutiaePoint>& minutiaeA, const st
 	}
 
 	// Test all possible alignments for closest match
-	for (auto& mA : minutiaeA) {
-		for (auto& mB : minutiaeB) {
+	for (const auto& mA : minutiaeA) {
+		for (const auto& mB : minutiaeB) {
 			// Calculate the translation and rotation needed to align mB with mA
 			// and apply it to all points in minutiaeB
 			double dTheta = mA.getAngle() - mB.getAngle();
@@ -31,41 +32,48 @@ double calculateMatchScore(const std::vector<MinutiaePoint>& minutiaeA, const st
 				transformedMinutiae.push_back(MinutiaePoint(xT, yT, pB.getType(), angleT));
 			}
 
-			const double DISTANCE_THRESHOLD_SQ = std::pow(8, 2); // Distance threshold squared (8 pixels, adjustable)
-			const double ANGLE_THRESHOLD = M_PI / 30; // Angle threshold (6 degrees, adjustable)
+			const double DISTANCE_THRESHOLD_SQ = std::pow(8.0, 2); // Distance threshold squared (8 pixels, adjustable)
+			const double ANGLE_THRESHOLD = M_PI / 30.0; // Angle threshold (6 degrees, adjustable)
 			int matchedPairs = 0;
-			double score;
+
+			// Ensures each point from the transformed set can only be matched once
+			std::vector<bool> matchedB(transformedMinutiae.size(), false);
 
 			// Check if best matching pair is within thresholds
 			for (const auto& pA : minutiaeA) {
-				double MIN_DISTANCE_SQ = -1.0;
-				const MinutiaePoint* bestMatch = nullptr;
+				double MIN_DISTANCE_SQ = std::numeric_limits<double>::max();
+				int bestMatchIndex = -1;
 
-				for (const auto& mTB : transformedMinutiae) {
+				for (size_t i = 0; i < transformedMinutiae.size(); ++i) {
+					if (matchedB[i]) continue; // Skip if this point is already used
+
+					const auto& mTB = transformedMinutiae[i];
 					double distanceSq = std::pow(pA.getPosition().first - mTB.getPosition().first, 2) +
-										std::pow(pA.getPosition().second - mTB.getPosition().second, 2);
+						std::pow(pA.getPosition().second - mTB.getPosition().second, 2);
 
-					if (MIN_DISTANCE_SQ == -1 || distanceSq < MIN_DISTANCE_SQ) {
+					if (distanceSq < MIN_DISTANCE_SQ) {
 						MIN_DISTANCE_SQ = distanceSq;
-                        bestMatch = &mTB;
+						bestMatchIndex = i;
 					}
 				}
 
-				if (bestMatch != nullptr && MIN_DISTANCE_SQ <= DISTANCE_THRESHOLD_SQ) {
-					double angleDiff = std::abs(bestMatch->getAngle() - pA.getAngle());
+				if (bestMatchIndex != -1 && MIN_DISTANCE_SQ <= DISTANCE_THRESHOLD_SQ) {
+					const MinutiaePoint& bestMatch = transformedMinutiae[bestMatchIndex];
+					double angleDiff = std::abs(bestMatch.getAngle() - pA.getAngle());
 
 					// Handle angle wraparound
 					if (angleDiff > M_PI) {
 						angleDiff = 2 * M_PI - angleDiff;
 					}
 
-					if (angleDiff <= ANGLE_THRESHOLD && bestMatch->getType() == pA.getType()) {
+					if (angleDiff <= ANGLE_THRESHOLD && bestMatch.getType() == pA.getType()) {
 						matchedPairs++;
+						matchedB[bestMatchIndex] = true; // Mark this point as used
 					}
 				}
 			}
 			// Calculate the score based on matched pairs & update bestScore if higher
-			double score = (static_cast<double>(std::pow(matchedPairs, 2)) / (minutiaeA.size() * minutiaeB.size()));
+			double score = (static_cast<double>(matchedPairs * matchedPairs) / (minutiaeA.size() * minutiaeB.size()));
 			if (score > bestScore) {
 				bestScore = score;
 			}

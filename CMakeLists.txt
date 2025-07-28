@@ -6,25 +6,33 @@ project(FingerprintRecognition)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# OpenCV configuration
-set(OpenCV_DIR "C:/Users/jamis/source/C++ Libs/opencv/build")
+# --- OpenCV Configuration ---
+# For this to work, you must set the OpenCV_DIR environment variable
+# pointing to your OpenCV build directory (e.g., C:/opencv/build).
 find_package(OpenCV REQUIRED)
 
-include_directories(${OpenCV_INCLUDE_DIRS})
-link_directories("C:/opencv/build/x64/vc16/lib")
+# Include the necessary directories for headers
+include_directories(include ${OpenCV_INCLUDE_DIRS})
 
-# Add dlib subdirectory
-add_subdirectory(dlib)
+# Group all shared library source files into a single variable
+set(LIB_SOURCES
+    src/imageProcessing.cpp
+    src/MinutiaePoint.cpp
+    src/matching.cpp
+)
 
-#include user-defined directories
-include_directories(include)
+# --- Executable for the main demonstration program ---
+add_executable(FingerprintRecognition
+    main.cpp
+    ${LIB_SOURCES}
+)
+# Link the main executable against OpenCV
+target_link_libraries(FingerprintRecognition PRIVATE ${OpenCV_LIBS})
 
-#Add source files
-set(SOURCES main.cpp src/imageProcessing.cpp)
-
-# Add your executable
-add_executable(FingerPrintRecognition main.cpp src/imageProcessing.cpp)
-
-# Link to dlib
-target_link_libraries(FingerPrintRecognition dlib::dlib)
-target_link_libraries(FingerPrintRecognition ${OpenCV_LIBS})
+# --- Executable for the testing and validation program ---
+add_executable(FingerprintRecognitionTest
+    testMain.cpp
+    ${LIB_SOURCES}
+)
+# Link the testing executable against OpenCV
+target_link_libraries(FingerprintRecognitionTest PRIVATE ${OpenCV_LIBS})

@@ -1,6 +1,6 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
-#include "include/imageProcessing.hpp"
+#include "imageProcessing.hpp"
 #include <cmath>
 
 #ifndef M_PI
@@ -162,39 +162,8 @@ void binarizeFingerprint(cv::Mat& img) {
     }
 }
 
-cv::Mat segmentFingerprint(const cv::Mat& img) {
-    const int blockSize = 16;
-    cv::Mat varianceMat = cv::Mat::zeros(img.size(), CV_32F);
-
-    // 1. Calculate variance in blocks
-    for (int y = 0; y < img.rows - blockSize; y += blockSize) {
-        for (int x = 0; x < img.cols - blockSize; x += blockSize) {
-            cv::Rect block(x, y, blockSize, blockSize);
-            cv::Mat roi = img(block);
-            cv::Scalar mean, stddev;
-            cv::meanStdDev(roi, mean, stddev);
-
-            // Set the variance for the entire block
-            cv::rectangle(varianceMat, block, cv::Scalar(stddev.val[0] * stddev.val[0]), -1);
-        }
-    }
-
-    // 2. Threshold the variance image to create a rough mask
-    cv::Mat mask;
-    cv::threshold(varianceMat, mask, 80, 255, cv::THRESH_BINARY);
-    mask.convertTo(mask, CV_8UC1);
-
-    // 3. Clean up the mask with morphological operations
-    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(15, 15));
-    // "Opening" removes small noise objects
-    cv::morphologyEx(mask, mask, cv::MORPH_OPEN, kernel);
-    // "Closing" fills small holes in the main object
-    cv::morphologyEx(mask, mask, cv::MORPH_CLOSE, kernel);
-
-    cv::Mat erosion_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));
-    cv::erode(mask, mask, erosion_kernel);
-
-    return mask;
+void adaptiveBinarizeFingerprint(cv::Mat& img) {
+    cv::adaptiveThreshold(img, img, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 11, 2);
 }
 
 std::vector<uchar> findNeighbors(const cv::Mat& img, int i, int j) {
@@ -418,7 +387,7 @@ std::vector<MinutiaePoint> findMinutiae(const cv::Mat& thinnedImage) {
 
 void removeFalseMinutiae(std::vector<MinutiaePoint>& minutiaePoints, int imgWidth, int imgHeight) {
 	const int BORDER_MARGIN = 15; // 15 pixels from the border (adjustable)
-	const double MIN_DISTANCE_SQ = std::pow(12.0, 2); // Minimum distance squared between minutiae points (15 pixels, adjustable)
+	const double MIN_DISTANCE_SQ = std::pow(11.0, 2); // Minimum distance squared between minutiae points (12 pixels, adjustable)
 
     // Rule 1: Mark minutiae too close to the border for removal
     std::vector<bool> to_remove(minutiaePoints.size(), false);

@@ -1,40 +1,39 @@
-# --- Build and Binary Files ---
-/build/
-/CMakeFiles/
-/CMakeCache.txt
+# Build output folders
+[Oo]ut/
+[Bb]uild/
+[Dd]ebug/
+[Rr]elease/
+
+# Visual Studio user files
+.vs/
+*.VC.db
+*.VC.VC.opendb
+*.sln.docstates
+
+# Dataset folders
+validation_imagery_enhanced/
+original/
+dataset/
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
 cmake_install.cmake
-Makefile
-*.o
-*.obj
+CMakePresets.json
+
+# Binaries
 *.exe
 *.dll
 *.lib
 *.pdb
-*.idb
-*.sdf
-*.cache
+*.ilk
+*.exp
+
+# Object files
+*.obj
+*.o
+
+# Other
 *.log
-
-# --- Visual Studio Files ---
-*.vcxproj*
-*.sln
-*.suo
 *.user
-*.opensdf
-*.VC.db
-/.vs/
-
-# --- System Files ---
-.DS_Store
-Thumbs.db
-
-# --- Git Files ---
-.git/
-
-# --- Optional ---
-*.out
-*.tmp
-*.bak
-
-# For further test_images, etc.
-
+*.suo

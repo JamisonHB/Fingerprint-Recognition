@@ -387,7 +387,7 @@ std::vector<MinutiaePoint> findMinutiae(const cv::Mat& thinnedImage) {
 
 void removeFalseMinutiae(std::vector<MinutiaePoint>& minutiaePoints, int imgWidth, int imgHeight) {
 	const int BORDER_MARGIN = 15; // 15 pixels from the border (adjustable)
-	const double MIN_DISTANCE_SQ = std::pow(11.0, 2); // Minimum distance squared between minutiae points (12 pixels, adjustable)
+	const double MIN_DISTANCE_SQ = std::pow(12.0, 2); // Minimum distance squared between minutiae points (12 pixels, adjustable)
 
     // Rule 1: Mark minutiae too close to the border for removal
     std::vector<bool> to_remove(minutiaePoints.size(), false);

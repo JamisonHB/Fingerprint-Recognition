@@ -21,27 +21,29 @@ std::vector<std::string> getDatabasePaths(const std::string& directory) {
 }
 
 int main() {
-        // --- 1. SETUP ---
-		const std::string datasetDirectory = "./validation_imagery_enhanced/"; // Adjust this path to dataset directory
-		const std::string probeImagePath = datasetDirectory + "a001_02.png"; // Adjust this path to your probe image
-		const double ACCEPTANCE_THRESHOLD = 0.02; // Define a threshold for accepting matches
+    // SETUP
+	const std::string datasetDirectory = "./validation_imagery_enhanced/"; // Adjust this path to dataset directory
+	const std::string probeImagePath = datasetDirectory + "a015_02.png"; // Adjust this path to your probe image
+    const double ACCEPTANCE_THRESHOLD = 0.02; // Define a threshold for accepting matches
 
-        std::vector<std::string> databaseImagePaths = getDatabasePaths(datasetDirectory);
+    std::vector<std::string> databaseImagePaths = getDatabasePaths(datasetDirectory);
 
-        // --- 2. PROCESS PROBE IMAGE ---
-        std::cout << "Processing Probe Image: " << probeImagePath << std::endl;
-        cv::Mat probeImage = cv::imread(probeImagePath, cv::IMREAD_GRAYSCALE);
-        if (probeImage.empty()) {
-            std::cerr << "Failed to load probe image." << std::endl;
-            return -1;
-        }
+    // PROCESS PROBE IMAGE
+    std::cout << "Processing Probe Image: " << probeImagePath << std::endl;
+    cv::Mat probeImage = cv::imread(probeImagePath, cv::IMREAD_GRAYSCALE);
+    if (probeImage.empty()) {
+        std::cerr << "Failed to load probe image." << std::endl;
+        return -1;
+    }
     binarizeFingerprint(probeImage);
     cv::Mat thinnedProbe = thinFingerprint(probeImage);
+    cv::imshow("Enhanced Probe Image", thinnedProbe);
+    cv::waitKey(0);
     std::vector<MinutiaePoint> probeMinutiae = findMinutiae(thinnedProbe);
     removeFalseMinutiae(probeMinutiae, thinnedProbe.cols, thinnedProbe.rows);
     std::cout << "Probe processing complete. Found " << probeMinutiae.size() << " minutiae.\n" << std::endl;
 
-    // --- 3. PROCESS AND MATCH AGAINST DATABASE ---
+    // PROCESS AND MATCH AGAINST DATABASE
     std::cout << "Matching probe against database..." << std::endl;
     double bestScore = -1.0;
     int bestMatchIndex = -1;
@@ -68,7 +70,7 @@ int main() {
         }
     }
 
-    // --- 4. SHOW RESULTS ---
+    // SHOW RESULTS
     std::cout << "\n--- Best Match Found ---" << std::endl;
     std::cout << "Probe: " << probeImagePath << std::endl;
     std::cout << "Best Match: " << databaseImagePaths[bestMatchIndex] << std::endl;

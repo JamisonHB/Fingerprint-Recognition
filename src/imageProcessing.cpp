@@ -264,38 +264,54 @@ cv::Mat thinFingerprint(const cv::Mat& img) {
     return thinnedImage;
 }
 
-double traceAndGetAngle(const cv::Mat& thinnedImage, cv::Point minutiaCenter, cv::Point startNode) {
-    cv::Point currentPos = startNode;
-    cv::Point prevPos = minutiaCenter;
+std::vector<cv::Point> traceRidge(const cv::Mat& thinnedImage, const MinutiaePoint& minutia) {
+    std::vector<cv::Point> ridgePoints;
+    cv::Point center(minutia.getPosition().first, minutia.getPosition().second);
+    ridgePoints.push_back(center);
 
-	const int TRACE_LENGTH = 7; // Walk distance (adjustable)
+    // Find the single starting neighbor for an ending, or any for a bifurcation
+    cv::Point startNode;
+    bool foundStart = false;
+    for (int ny = -1; ny <= 1; ++ny) {
+        for (int nx = -1; nx <= 1; ++nx) {
+            if (ny == 0 && nx == 0) continue;
+            cv::Point neighbor(center.x + nx, center.y + ny);
+            if (neighbor.x >= 0 && neighbor.y >= 0 && neighbor.y < thinnedImage.rows && neighbor.x < thinnedImage.cols && thinnedImage.at<uchar>(neighbor) > 0) {
+                startNode = neighbor;
+                foundStart = true;
+                break;
+            }
+        }
+        if (foundStart) break;
+    }
+
+    if (!foundStart) return ridgePoints;
+
+    cv::Point currentPos = startNode;
+    cv::Point prevPos = center;
+    ridgePoints.push_back(currentPos);
+
+    const int TRACE_LENGTH = 10; // Suggested by research paper
     for (int i = 0; i < TRACE_LENGTH; ++i) {
         bool foundNext = false;
-        // Check 8 neighbors to find the next step
         for (int ny = -1; ny <= 1; ++ny) {
             for (int nx = -1; nx <= 1; ++nx) {
                 if (ny == 0 && nx == 0) continue;
-
                 cv::Point nextPos(currentPos.x + nx, currentPos.y + ny);
-
-                // Ensure the next point is within bounds
                 if (nextPos.x < 0 || nextPos.y < 0 || nextPos.y >= thinnedImage.rows || nextPos.x >= thinnedImage.cols) continue;
-
-                // Move to the next ridge pixel that isn't the one we just came from
                 if ((nextPos != prevPos) && (thinnedImage.at<uchar>(nextPos) > 0)) {
                     prevPos = currentPos;
                     currentPos = nextPos;
+                    ridgePoints.push_back(currentPos);
                     foundNext = true;
-                    goto next_trace_step; // Exit neighbor loops
+                    goto next_ridge_step;
                 }
             }
         }
-    next_trace_step:
-        if (!foundNext) break; // Stop if the path ends
+    next_ridge_step:
+        if (!foundNext) break;
     }
-
-    // Return the angle of the vector from the minutia's center to the end of our trace
-    return atan2(static_cast<double>(currentPos.y - minutiaCenter.y), static_cast<double>(currentPos.x - minutiaCenter.x));
+    return ridgePoints;
 }
 
 std::vector<MinutiaePoint> findMinutiae(const cv::Mat& thinnedImage) {

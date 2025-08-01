@@ -25,8 +25,8 @@ int findTransitions(std::vector<uchar> neighbors);
 // Function to thin a fingerprint image
 cv::Mat thinFingerprint(const cv::Mat& img);
 
-// Helper function to trace the minutiae and get the angle
-double traceAndGetAngle(const cv::Mat& thinnedImage, cv::Point minutiaeCenter, cv::Point startNode);
+// Helper function to trace a ridge from a minutiae point
+std::vector<cv::Point> traceRidge(const cv::Mat& thinnedImage, const MinutiaePoint& minutia);
 
 // Function to find minutiae points in a fingerprint image
 std::vector<MinutiaePoint> findMinutiae(const cv::Mat& thinnedImage);

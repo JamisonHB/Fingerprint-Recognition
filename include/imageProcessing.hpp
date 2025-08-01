@@ -25,6 +25,9 @@ int findTransitions(std::vector<uchar> neighbors);
 // Function to thin a fingerprint image
 cv::Mat thinFingerprint(const cv::Mat& img);
 
+// Function to clean up a thinned image by removing isolated segments
+void cleanThinnedImage(cv::Mat& thinnedImage);
+
 // Helper function to trace a ridge from a minutiae point
 std::vector<cv::Point> traceRidge(const cv::Mat& thinnedImage, const MinutiaePoint& minutia);
 

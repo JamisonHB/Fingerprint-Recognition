@@ -264,6 +264,33 @@ cv::Mat thinFingerprint(const cv::Mat& img) {
     return thinnedImage;
 }
 
+void cleanThinnedImage(cv::Mat& thinnedImage) {
+    cv::Mat labels, stats, centroids;
+    int num_labels = cv::connectedComponentsWithStats(thinnedImage, labels, stats, centroids, 8, CV_32S);
+
+    // Create a new image to store the cleaned result
+    cv::Mat cleaned_image = cv::Mat::zeros(thinnedImage.size(), CV_8UC1);
+
+    // The minimum number of pixels a ridge must have to be kept
+    // Anything smaller is considered a noisy artifact
+    const int MIN_RIDGE_LENGTH = 15; // Adjustable parameter
+
+    // Start from label 1, label 0 is the background
+    for (int i = 1; i < num_labels; i++) {
+        // Get the area (pixel count) of the current ridge segment
+        int area = stats.at<int>(i, cv::CC_STAT_AREA);
+
+        if (area >= MIN_RIDGE_LENGTH) {
+            // Create a mask for the current component and add it to our cleaned image
+            cv::Mat component_mask = (labels == i);
+            cleaned_image.setTo(255, component_mask);
+        }
+    }
+
+    // Overwrite the original thinned image with the cleaned version
+    thinnedImage = cleaned_image;
+}
+
 std::vector<cv::Point> traceRidge(const cv::Mat& thinnedImage, const MinutiaePoint& minutia) {
     std::vector<cv::Point> ridgePoints;
     cv::Point center(minutia.getPosition().first, minutia.getPosition().second);

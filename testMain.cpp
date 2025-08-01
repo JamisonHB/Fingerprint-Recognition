@@ -25,7 +25,7 @@ std::string parsePersonId(const std::string& filename) {
 
 int main() {
     // --- 1. SETUP ---
-	const std::string databaseDirectory = "./dataset/"; // Adjust this path to your dataset directory
+	const std::string databaseDirectory = "./validation_imagery_enhanced/"; // Adjust this path to your dataset directory
     if (!std::filesystem::exists(databaseDirectory)) {
         throw std::runtime_error("Dataset directory not found: " + databaseDirectory);
     }
@@ -47,6 +47,7 @@ int main() {
 
         binarizeFingerprint(image);
         cv::Mat thinnedImage = thinFingerprint(image);
+		cleanThinnedImage(thinnedImage);
         std::vector<MinutiaePoint> minutiae = findMinutiae(thinnedImage);
         removeFalseMinutiae(minutiae, thinnedImage.cols, thinnedImage.rows);
 

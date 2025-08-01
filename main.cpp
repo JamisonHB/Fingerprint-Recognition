@@ -22,7 +22,7 @@ std::vector<std::string> getDatabasePaths(const std::string& directory) {
 
 int main() {
     // SETUP
-	const std::string datasetDirectory = "./dataset/"; // Adjust this path to dataset directory
+	const std::string datasetDirectory = "./validation_imagery_enhanced/"; // Adjust this path to dataset directory
 	const std::string probeImagePath = datasetDirectory + "a015_02.png"; // Adjust this path to your probe image
     const double ACCEPTANCE_THRESHOLD = 0.02; // Define a threshold for accepting matches
 
@@ -37,8 +37,7 @@ int main() {
     }
     binarizeFingerprint(probeImage);
     cv::Mat thinnedProbe = thinFingerprint(probeImage);
-    cv::imshow("Enhanced Probe Image", thinnedProbe);
-    cv::waitKey(0);
+	cleanThinnedImage(thinnedProbe);
     std::vector<MinutiaePoint> probeMinutiae = findMinutiae(thinnedProbe);
     removeFalseMinutiae(probeMinutiae, thinnedProbe.cols, thinnedProbe.rows);
     std::cout << "Probe processing complete. Found " << probeMinutiae.size() << " minutiae.\n" << std::endl;
@@ -58,6 +57,7 @@ int main() {
 
         binarizeFingerprint(dbImage);
         cv::Mat thinnedDb = thinFingerprint(dbImage);
+		cleanThinnedImage(thinnedDb);
         std::vector<MinutiaePoint> dbMinutiae = findMinutiae(thinnedDb);
         removeFalseMinutiae(dbMinutiae, thinnedDb.cols, thinnedDb.rows);
 

@@ -1,4 +1,5 @@
 #include "matching.hpp"
+#include "imageProcessing.hpp"
 #include <cmath>
 #include <limits>
 
@@ -6,7 +7,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-double calculateMatchScore(const std::vector<MinutiaePoint>& minutiaeA, const std::vector<MinutiaePoint>& minutiaeB) {
+double calculateMatchScore(const std::vector<MinutiaePoint>& minutiaeA, const cv::Mat& thinnedA, const std::vector<MinutiaePoint>& minutiaeB, const cv::Mat& thinnedB) {
 	double bestScore = 0.0;
 	if (minutiaeA.empty() || minutiaeB.empty()) {
 		return 0.0;
@@ -15,6 +16,12 @@ double calculateMatchScore(const std::vector<MinutiaePoint>& minutiaeA, const st
 	// Test all possible alignments for closest match
 	for (const auto& mA : minutiaeA) {
 		for (const auto& mB : minutiaeB) {
+			// Prune out pairs with large differences in number of ridge points (small optimization)
+			std::vector<cv::Point> ridgeA = traceRidge(thinnedA, mA);
+			std::vector<cv::Point> ridgeB = traceRidge(thinnedB, mB);
+			if (std::abs((int)ridgeA.size() - (int)ridgeB.size()) > 5) {
+				continue; // Skip to the next pair
+			}
 			// Calculate the translation and rotation needed to align mB with mA
 			// and apply it to all points in minutiaeB
 			double dTheta = mA.getAngle() - mB.getAngle();

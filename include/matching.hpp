@@ -5,4 +5,4 @@
 #include "MinutiaePoint.hpp"
 
 // Finds the best possible alignment between two prints
-double calculateMatchScore(const std::vector<MinutiaePoint>& minutiaeA, const std::vector<MinutiaePoint>& minutiaeB);
+double calculateMatchScore(const std::vector<MinutiaePoint>& minutiaeA, const cv::Mat& thinnedA, const std::vector<MinutiaePoint>& minutiaeB, const cv::Mat& thinnedB);

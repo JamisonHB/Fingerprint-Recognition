@@ -22,7 +22,7 @@ std::vector<std::string> getDatabasePaths(const std::string& directory) {
 
 int main() {
     // SETUP
-	const std::string datasetDirectory = "./validation_imagery_enhanced/"; // Adjust this path to dataset directory
+	const std::string datasetDirectory = "./dataset/"; // Adjust this path to dataset directory
 	const std::string probeImagePath = datasetDirectory + "a015_02.png"; // Adjust this path to your probe image
     const double ACCEPTANCE_THRESHOLD = 0.02; // Define a threshold for accepting matches
 
@@ -61,7 +61,7 @@ int main() {
         std::vector<MinutiaePoint> dbMinutiae = findMinutiae(thinnedDb);
         removeFalseMinutiae(dbMinutiae, thinnedDb.cols, thinnedDb.rows);
 
-        double currentScore = calculateMatchScore(probeMinutiae, dbMinutiae);
+        double currentScore = calculateMatchScore(probeMinutiae, thinnedProbe, dbMinutiae, thinnedDb);
         std::cout << "  - Score with " << dbPath << ": " << currentScore << std::endl;
 
         if (currentScore > bestScore) {

@@ -343,45 +343,54 @@ std::vector<MinutiaePoint> findMinutiae(const cv::Mat& thinnedImage) {
 
                 // Check for Endings
                 if (crossingNumber == 1) {
-                    // Find the single neighboring ridge pixel to start the trace
-                    for (int ny = -1; ny <= 1; ++ny) {
-                        for (int nx = -1; nx <= 1; ++nx) {
-                            if (ny == 0 && nx == 0) continue;
-                            cv::Point neighbor(x + nx, y + ny);
-                            if (thinnedImage.at<uchar>(neighbor) > 0) {
-                                double angle = traceAndGetAngle(thinnedImage, center, neighbor);
-                                minutiaePoints.push_back(MinutiaePoint(x, y, "ending", angle));
-								break; // Neighbor found, no need to check others
-                            }
-                        }
+                    MinutiaePoint ending(x, y, "ending", 0); // Temporary point
+                    std::vector<cv::Point> ridge = traceRidge(thinnedImage, ending);
+                    if (ridge.size() > 1) {
+                        cv::Point startPoint = ridge.front(); // The minutia point
+                        cv::Point endPoint = ridge.back();   // The end of the trace
+                        double angle = atan2(static_cast<double>(endPoint.y - startPoint.y), static_cast<double>(endPoint.x - startPoint.x));
+                        minutiaePoints.push_back(MinutiaePoint(x, y, "ending", angle));
                     }
                 }
                 // Check for Bifurcations
                 else if (crossingNumber == 3) {
                     std::vector<double> angles;
-                    // Find the 3 neighboring ridge pixels
+                    cv::Point center(x, y);
+
+                    // Find the 3 neighboring ridge pixels and trace each branch
                     for (int ny = -1; ny <= 1; ++ny) {
                         for (int nx = -1; nx <= 1; ++nx) {
                             if (ny == 0 && nx == 0) continue;
                             cv::Point neighbor(x + nx, y + ny);
                             if (thinnedImage.at<uchar>(neighbor) > 0) {
-                                angles.push_back(traceAndGetAngle(thinnedImage, center, neighbor));
+                                // Temporary minutia point at the neighbor to start the trace
+                                MinutiaePoint tempNode(neighbor.x, neighbor.y, "bifurcation", 0);
+                                std::vector<cv::Point> ridge = traceRidge(thinnedImage, tempNode);
+                                if (ridge.size() > 1) {
+                                    cv::Point endPoint = ridge.back();
+                                    angles.push_back(atan2(static_cast<double>(endPoint.y - center.y), static_cast<double>(endPoint.x - center.x)));
+                                }
                             }
                         }
                     }
 
                     // If we found 3 angles, find the orientation of the stem
                     if (angles.size() == 3) {
+                        // Calculate the absolute difference between each pair of angles
                         double d1 = std::abs(angles[0] - angles[1]);
                         double d2 = std::abs(angles[1] - angles[2]);
                         double d3 = std::abs(angles[2] - angles[0]);
 
+                        // Correct for angle wraparound
                         if (d1 > M_PI) d1 = 2 * M_PI - d1;
                         if (d2 > M_PI) d2 = 2 * M_PI - d2;
                         if (d3 > M_PI) d3 = 2 * M_PI - d3;
 
                         double bifurcation_angle = 0;
+                        // The two branches with the smallest angle between them are the "V" part of the "Y"
+                        // The stem is the remaining branch.
                         if (d1 <= d2 && d1 <= d3) {
+                            // Adjust angle by 180 degrees
                             bifurcation_angle = angles[2] + M_PI;
                         }
                         else if (d2 <= d1 && d2 <= d3) {
@@ -391,6 +400,7 @@ std::vector<MinutiaePoint> findMinutiae(const cv::Mat& thinnedImage) {
                             bifurcation_angle = angles[1] + M_PI;
                         }
 
+                        // Normalize the final angle to be within (-PI, PI)
                         bifurcation_angle = atan2(sin(bifurcation_angle), cos(bifurcation_angle));
                         minutiaePoints.push_back(MinutiaePoint(x, y, "bifurcation", bifurcation_angle));
                     }

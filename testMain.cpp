@@ -11,6 +11,7 @@ struct FingerprintData {
     std::string path;
     std::string personId;
     std::vector<MinutiaePoint> minutiae;
+	cv::Mat thinnedImage;
 };
 
 // Helper function to extract the person ID (e.g., "001") from a filename
@@ -51,7 +52,7 @@ int main() {
         std::vector<MinutiaePoint> minutiae = findMinutiae(thinnedImage);
         removeFalseMinutiae(minutiae, thinnedImage.cols, thinnedImage.rows);
 
-        fingerprints.push_back({ path, parsePersonId(filename), minutiae });
+        fingerprints.push_back({ path, parsePersonId(filename), minutiae, thinnedImage });
     }
     std::cout << "Processing complete. Loaded " << fingerprints.size() << " fingerprints.\n" << std::endl;
 
@@ -66,7 +67,7 @@ int main() {
         for (size_t j = 0; j < fingerprints.size(); ++j) {
             if (i == j) continue; // Don't compare a print to itself
             const auto& candidate = fingerprints[j];
-            double score = calculateMatchScore(probe.minutiae, candidate.minutiae);
+            double score = calculateMatchScore(probe.minutiae, probe.thinnedImage, candidate.minutiae, candidate.thinnedImage);
             if (score > bestScore) {
                 bestScore = score;
                 bestMatchIndex = j;
@@ -79,7 +80,9 @@ int main() {
         std::cout << "  Probe " << i + 1 << "/" << fingerprints.size() << " completed...\r";
     }
     std::cout << std::string(80, ' ') << "\r";
-
+    double top1_accuracy = (fingerprints.size() > 0) ? static_cast<double>(correctTopMatches) / fingerprints.size() : 0.0;
+    std::cout << "Correct Top-1 Matches: " << correctTopMatches << " / " << fingerprints.size()
+        << " (" << top1_accuracy * 100.0 << "%)" << std::endl;
 
     // --- 4. PERFORM AUTOMATED THRESHOLD TESTING ---
     std::cout << "\nStarting automated threshold testing..." << std::endl;
@@ -99,7 +102,7 @@ int main() {
                 if (isTruePair) totalTruePairs++;
                 else totalImpostorPairs++;
 
-                double score = calculateMatchScore(fingerprints[i].minutiae, fingerprints[j].minutiae);
+                double score = calculateMatchScore(fingerprints[i].minutiae, fingerprints[i].thinnedImage, fingerprints[j].minutiae, fingerprints[j].thinnedImage);
 
                 if (isTruePair && score < threshold) falseRejects++;
                 else if (!isTruePair && score >= threshold) falseAccepts++;
@@ -111,11 +114,7 @@ int main() {
         std::cout << threshold << "," << FAR * 100.0 << "," << FRR * 100.0 << std::endl;
     }
 
-    // --- 5. DISPLAY FINAL STATS ---
     std::cout << "\n--- Testing Complete ---" << std::endl;
-    double top1_accuracy = (fingerprints.size() > 0) ? static_cast<double>(correctTopMatches) / fingerprints.size() : 0.0;
-    std::cout << "Correct Top-1 Matches: " << correctTopMatches << " / " << fingerprints.size()
-        << " (" << top1_accuracy * 100.0 << "%)" << std::endl;
 
     return 0;
 }

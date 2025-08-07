@@ -39,8 +39,8 @@ double calculateMatchScore(const std::vector<MinutiaePoint>& minutiaeA, const cv
 				transformedMinutiae.push_back(MinutiaePoint(xT, yT, pB.getType(), angleT));
 			}
 
-			const double DISTANCE_THRESHOLD_SQ = std::pow(8.0, 2); // Distance threshold squared (15 pixels, adjustable)
-			const double ANGLE_THRESHOLD = M_PI / 30.0; // Angle threshold (10 degrees, adjustable)
+			const double DISTANCE_THRESHOLD_SQ = std::pow(20.0, 2); // Distance threshold squared (15 pixels, adjustable)
+			const double ANGLE_THRESHOLD = M_PI / 18.0; // Angle threshold (10 degrees, adjustable)
 			int matchedPairs = 0;
 
 			// Ensures each point from the transformed set can only be matched once
